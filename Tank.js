@@ -1,47 +1,62 @@
 class Tank {
-    constructor(scene, physicsWorld) {
+    constructor(scene, physicsWorld, listener) {
         this.scene = scene;
         this.physicsWorld = physicsWorld;
+        this.listener = listener;
         this.health = 100;
         this.ammo = 30;
 
         this.mesh = new THREE.Group();
-        this.buildModel();
         this.scene.add(this.mesh);
 
-        // Physics Rigid Body setup
-        const boxShape = new CANNON.Box(new CANNON.Vec3(1.5, 0.75, 2.5));
+        // Physics Rigid Body setup (approximate dimensions for tank.glb)
+        const boxShape = new CANNON.Box(new CANNON.Vec3(1.5, 0.9, 2.8));
         this.body = new CANNON.Body({ mass: 15000, material: physicsWorld.tankMaterial });
         this.body.addShape(boxShape);
         this.body.position.set(0, 1.5, 0);
         this.physicsWorld.world.addBody(this.body);
+
+        // Load 3D GLB Model
+        this.loadModel();
+        
+        // Setup Engine Sound
+        this.setupEngineSound();
     }
 
-    buildModel() {
-        const mat = new THREE.MeshStandardMaterial({ color: 0x2e3b23, roughness: 0.6 });
-        
-        // Base Hull
-        const hull = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 5), mat);
-        hull.position.y = 0.6;
-        this.mesh.add(hull);
+    loadModel() {
+        const loader = new THREE.GLTFLoader();
+        loader.load('models/tank.glb', (gltf) => {
+            this.model = gltf.scene;
+            
+            // Shadows enable karna
+            this.model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
 
-        // Rotating Turret
-        this.turret = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 2.2), mat);
-        this.turret.position.set(0, 1.6, -0.2);
-        this.mesh.add(this.turret);
+            this.mesh.add(this.model);
+        }, undefined, (error) => {
+            console.error('Error loading GLB tank model:', error);
+        });
+    }
 
-        // Main Cannon Barrel
-        const barrelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        this.barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3.5), barrelMat);
-        this.barrel.rotation.x = Math.PI / 2;
-        this.barrel.position.set(0, 1.6, 2.2);
-        this.mesh.add(this.barrel);
+    setupEngineSound() {
+        this.engineSound = new THREE.PositionalAudio(this.listener);
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('sounds/engine.mp3', (buffer) => {
+            this.engineSound.setBuffer(buffer);
+            this.engineSound.setLoop(true);
+            this.engineSound.setVolume(0.5);
+            this.engineSound.setRefDistance(10);
+            this.engineSound.play();
+        });
+        this.mesh.add(this.engineSound);
     }
 
     move(forward, turn) {
         const forceMagnitude = 250000;
-        const torqueMagnitude = 180000;
-
         const forwardVec = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion);
         
         if (forward !== 0) {
@@ -55,6 +70,12 @@ class Tank {
 
         if (turn !== 0) {
             this.body.angularVelocity.y = -turn * 1.5;
+        }
+
+        // Engine sound pitch control based on speed
+        if (this.engineSound && this.engineSound.isPlaying) {
+            const speed = this.body.velocity.length();
+            this.engineSound.setPlaybackRate(1 + speed * 0.05);
         }
     }
 
