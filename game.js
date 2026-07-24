@@ -1,80 +1,72 @@
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-import { createEnvironment } from './Terrain.js';
-import { Tank } from './Tank.js';
-import { CameraController } from './Camera.js';
-import { EnemyTank } from './enemy.js';
-
-// Setup Renderer & World
+// Main Game Controller
+const physics = new PhysicsWorld();
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.003);
+
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.81, 0) });
-
-// Day / Night Cycle Setup
-const sun = new THREE.DirectionalLight(0xffffff, 1);
+// Lighting Setup (Sun & Ambient Light)
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(50, 100, 50);
-scene.add(sun, new THREE.AmbientLight(0xffffff, 0.4));
+sun.castShadow = true;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x404040, 0.6));
 
-let dayTime = 0;
-function updateDayNightCycle() {
-    dayTime += 0.001;
-    sun.position.x = Math.cos(dayTime) * 100;
-    sun.position.y = Math.sin(dayTime) * 100;
-    
-    // Sky Color interpolation
-    if (sun.position.y < 0) {
-        scene.background = new THREE.Color(0x050510); // Night Sky
-    } else {
-        scene.background = new THREE.Color(0x87ceeb); // Day Sky
-    }
-}
+// Instantiations
+const input = new InputHandler();
+const terrain = new Terrain(scene, physics);
+const player = new Tank(scene, physics);
+const gameCam = new GameCamera(camera, player.mesh);
+const weapons = new WeaponSystem(scene, physics);
+const enemy = new EnemyAI(scene, physics, player);
+const ui = new UIManager();
 
-// Entities
-const environment = createEnvironment(scene, world);
-const playerTank = new Tank(scene, world);
-const enemyTank = new EnemyTank(scene, world, new CANNON.Vec3(20, 5, 20));
-const cameraController = new CameraController(camera, playerTank.mesh);
+const clock = new THREE.Clock();
 
-// MiniMap Context Setup
-const mapCanvas = document.getElementById('minimap');
-const mapCtx = mapCanvas ? mapCanvas.getContext('2d') : null;
-
-function updateMiniMap() {
-    if (!mapCtx) return;
-    mapCtx.clearRect(0, 0, 150, 150);
-    
-    // Draw Player
-    mapCtx.fillStyle = 'green';
-    mapCtx.beginPath();
-    mapCtx.arc(75, 75, 5, 0, Math.PI * 2);
-    mapCtx.fill();
-
-    // Draw Enemy
-    const dx = 75 + (enemyTank.mesh.position.x - playerTank.mesh.position.x);
-    const dz = 75 + (enemyTank.mesh.position.z - playerTank.mesh.position.z);
-    mapCtx.fillStyle = 'red';
-    mapCtx.beginPath();
-    mapCtx.arc(dx, dz, 4, 0, Math.PI * 2);
-    mapCtx.fill();
-}
-
-// Main Game Loop
 function animate() {
     requestAnimationFrame(animate);
 
-    world.fixedStep();
-    updateDayNightCycle();
-    playerTank.update();
-    enemyTank.update(playerTank.mesh.position);
-    cameraController.update();
-    updateMiniMap();
+    const dt = clock.getDelta();
+
+    // Movement logic
+    const forward = (input.keys.forward ? 1 : 0) - (input.keys.backward ? 1 : 0);
+    const turn = (input.keys.right ? 1 : 0) - (input.keys.left ? 1 : 0);
+    player.move(forward, turn);
+
+    // Camera Mode Check
+    gameCam.isScope = input.keys.scope;
+    ui.toggleScope(input.keys.scope);
+
+    // Shooting Mechanics
+    if (input.keys.fire) {
+        const fireDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
+        const spawnPos = player.mesh.position.clone().add(fireDirection.clone().multiplyScalar(3.5));
+        
+        if (weapons.fire(spawnPos, fireDirection)) {
+            input.keys.fire = false; // Single tap action
+        }
+    }
+
+    // Engine Updates
+    physics.update(dt);
+    player.update();
+    enemy.update();
+    weapons.update(dt);
+    gameCam.update();
+    ui.updateHUD(player.health, player.ammo);
 
     renderer.render(scene, camera);
 }
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 animate();
