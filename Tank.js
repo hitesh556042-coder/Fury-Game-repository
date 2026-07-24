@@ -1,54 +1,65 @@
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-
-export class Tank {
-    constructor(scene, world) {
+class Tank {
+    constructor(scene, physicsWorld) {
         this.scene = scene;
-        this.world = world;
+        this.physicsWorld = physicsWorld;
         this.health = 100;
-        this.ammo = 20;
-        this.isReloading = false;
+        this.ammo = 30;
 
-        // 3D Chassis
-        const bodyGeo = new THREE.BoxGeometry(3, 1.2, 5);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x2e3b23 });
-        this.mesh = new THREE.Mesh(bodyGeo, mat);
-        this.mesh.castShadow = true;
-        scene.add(this.mesh);
+        this.mesh = new THREE.Group();
+        this.buildModel();
+        this.scene.add(this.mesh);
 
-        // Turret
-        const turretGeo = new THREE.BoxGeometry(2, 0.8, 2.2);
-        this.turret = new THREE.Mesh(turretGeo, mat);
-        this.turret.position.set(0, 1, 0);
-        this.mesh.add(this.turret);
-
-        // Barrel (For Recoil)
-        const barrelGeo = new THREE.CylinderGeometry(0.12, 0.12, 3.5);
-        this.barrel = new THREE.Mesh(barrelGeo, new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        this.barrel.rotation.x = Math.PI / 2;
-        this.barrel.position.set(0, 0.2, -2);
-        this.turret.add(this.barrel);
-
-        // Physics Body (With Suspension Gravity)
-        const shape = new CANNON.Box(new CANNON.Vec3(1.5, 0.6, 2.5));
-        this.body = new CANNON.Body({ mass: 2000 });
-        this.body.addShape(shape);
-        this.body.position.set(0, 5, 0);
-        this.body.angularDamping = 0.5; // Controls roll stability
-        world.addBody(this.body);
+        // Physics Rigid Body setup
+        const boxShape = new CANNON.Box(new CANNON.Vec3(1.5, 0.75, 2.5));
+        this.body = new CANNON.Body({ mass: 15000, material: physicsWorld.tankMaterial });
+        this.body.addShape(boxShape);
+        this.body.position.set(0, 1.5, 0);
+        this.physicsWorld.world.addBody(this.body);
     }
 
-    // Cannon Recoil Effect
-    applyRecoil() {
-        this.barrel.position.z += 0.5; // Backward Kick
-        this.body.applyLocalImpulse(new CANNON.Vec3(0, 0, 1500), new CANNON.Vec3(0, 0, 0)); // Tank kickback
+    buildModel() {
+        const mat = new THREE.MeshStandardMaterial({ color: 0x2e3b23, roughness: 0.6 });
+        
+        // Base Hull
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 5), mat);
+        hull.position.y = 0.6;
+        this.mesh.add(hull);
+
+        // Rotating Turret
+        this.turret = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 2.2), mat);
+        this.turret.position.set(0, 1.6, -0.2);
+        this.mesh.add(this.turret);
+
+        // Main Cannon Barrel
+        const barrelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        this.barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3.5), barrelMat);
+        this.barrel.rotation.x = Math.PI / 2;
+        this.barrel.position.set(0, 1.6, 2.2);
+        this.mesh.add(this.barrel);
+    }
+
+    move(forward, turn) {
+        const forceMagnitude = 250000;
+        const torqueMagnitude = 180000;
+
+        const forwardVec = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion);
+        
+        if (forward !== 0) {
+            const force = new CANNON.Vec3(
+                forwardVec.x * forward * forceMagnitude,
+                0,
+                forwardVec.z * forward * forceMagnitude
+            );
+            this.body.applyForce(force, this.body.position);
+        }
+
+        if (turn !== 0) {
+            this.body.angularVelocity.y = -turn * 1.5;
+        }
     }
 
     update() {
         this.mesh.position.copy(this.body.position);
         this.mesh.quaternion.copy(this.body.quaternion);
-
-        // Smooth Recoil Return
-        this.barrel.position.z = THREE.MathUtils.lerp(this.barrel.position.z, -2, 0.1);
     }
 }
