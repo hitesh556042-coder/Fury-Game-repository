@@ -1,28 +1,32 @@
-// Main Game Controller
 const physics = new PhysicsWorld();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.FogExp2(0x87ceeb, 0.003);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+// Audio Listener Setup
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// Lighting Setup (Sun & Ambient Light)
+// Lighting Setup
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(50, 100, 50);
 sun.castShadow = true;
 scene.add(sun);
 scene.add(new THREE.AmbientLight(0x404040, 0.6));
 
-// Instantiations
+// Instantiations with Audio Listener & Assets
 const input = new InputHandler();
 const terrain = new Terrain(scene, physics);
-const player = new Tank(scene, physics);
+const player = new Tank(scene, physics, listener);
 const gameCam = new GameCamera(camera, player.mesh);
-const weapons = new WeaponSystem(scene, physics);
+const weapons = new WeaponSystem(scene, physics, listener);
 const enemy = new EnemyAI(scene, physics, player);
 const ui = new UIManager();
 
@@ -48,11 +52,11 @@ function animate() {
         const spawnPos = player.mesh.position.clone().add(fireDirection.clone().multiplyScalar(3.5));
         
         if (weapons.fire(spawnPos, fireDirection)) {
-            input.keys.fire = false; // Single tap action
+            input.keys.fire = false;
         }
     }
 
-    // Engine Updates
+    // Updates
     physics.update(dt);
     player.update();
     enemy.update();
