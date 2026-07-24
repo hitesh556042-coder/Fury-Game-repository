@@ -1,91 +1,42 @@
-here<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Fury Game</title>
-
-<link rel="stylesheet" href="style.css">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Fury - 3D Tank Simulator</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #hud { position: absolute; top: 10px; left: 10px; color: #fff; text-shadow: 1px 1px 2px #000; }
+        #minimap { position: absolute; top: 10px; right: 10px; border: 2px solid #fff; background: rgba(0,0,0,0.5); border-radius: 50%; }
+        #mobile-fire { position: absolute; bottom: 30px; right: 30px; width: 70px; height: 70px; background: red; border-radius: 50%; color: white; border: none; font-weight: bold; }
+        #scope-overlay { position: absolute; top:0; left:0; width:100vw; height:100vh; pointer-events:none; display:none; border: 50px solid black; box-sizing: border-box; }
+    </style>
 </head>
-
 <body>
 
-<!-- Loading Screen -->
-<div id="loading">
-<h1>FURY GAME</h1>
-<p>Loading...</p>
-</div>
+    <div id="hud">
+        <h2>FURY TANK</h2>
+        <p>Health: <span id="health">100</span>%</p>
+        <p>Ammo: <span id="ammo">20</span></p>
+    </div>
 
-<!-- HUD -->
-<div id="hud">
+    <!-- MiniMap -->
+    <canvas id="minimap" width="150" height="150"></canvas>
 
-<div id="health">
-Health : 100%
-</div>
+    <!-- Scope Circle Overlay -->
+    <div id="scope-overlay"></div>
 
-<div id="ammo">
-Ammo : 20
-</div>
+    <!-- Mobile Touch Controls -->
+    <button id="mobile-fire">FIRE</button>
 
-<div id="reload">
-READY
-</div>
-
-<div id="speed">
-Speed : 0 KM/H
-</div>
-
-</div>
-
-<!-- Scope -->
-<div id="scope">
-<div id="crosshair"></div>
-</div>
-
-<!-- Mini Map -->
-<canvas id="minimap"></canvas>
-
-<!-- Mobile Controls -->
-<div id="controls">
-
-<div class="row">
-<button id="forward">⬆</button>
-</div>
-
-<div class="row">
-<button id="left">⬅</button>
-<button id="fire">🔥</button>
-<button id="right">➡</button>
-</div>
-
-<div class="row">
-<button id="back">⬇</button>
-<button id="zoom">🔍</button>
-<button id="view">🎥</button>
-</div>
-
-</div>
-
-<!-- Three.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<!-- Rapier Physics -->
-<script src="https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat"></script>
-
-<!-- Game Files -->
-
-<script src="game.js"></script>
-<script src="terrain.js"></script>
-<script src="physics.js"></script>
-<script src="tank.js"></script>
-<script src="camera.js"></script>
-<script src="weapons.js"></script>
-<script src="enemy.js"></script>
-<script src="ui.js"></script>
-<script src="input.js"></script>
-
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+    <script type="module" src="game.js"></script>
 </body>
 </html>
