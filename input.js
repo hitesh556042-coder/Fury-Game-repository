@@ -1,19 +1,21 @@
-export class InputManager {
+class InputHandler {
     constructor() {
-        this.keys = {};
-        this.touch = { moveX: 0, moveY: 0, isFiring: false };
-
-        window.addEventListener('keydown', (e) => this.keys[e.key] = true);
-        window.addEventListener('keyup', (e) => this.keys[e.key] = false);
-
-        this.setupMobileControls();
+        this.keys = { forward: false, backward: false, left: false, right: false, fire: false, scope: false };
+        
+        window.addEventListener('keydown', (e) => this.onKeyChange(e, true));
+        window.addEventListener('keyup', (e) => this.onKeyChange(e, false));
+        window.addEventListener('mousedown', (e) => { if (e.button === 0) this.keys.fire = true; });
+        window.addEventListener('mouseup', (e) => { if (e.button === 0) this.keys.fire = false; });
+        window.addEventListener('contextmenu', (e) => { e.preventDefault(); this.keys.scope = !this.keys.scope; });
     }
 
-    setupMobileControls() {
-        const fireBtn = document.getElementById('mobile-fire');
-        if (fireBtn) {
-            fireBtn.addEventListener('touchstart', () => this.touch.isFiring = true);
-            fireBtn.addEventListener('touchend', () => this.touch.isFiring = false);
+    onKeyChange(e, isPressed) {
+        switch (e.code) {
+            case 'KeyW': case 'ArrowUp': this.keys.forward = isPressed; break;
+            case 'KeyS': case 'ArrowDown': this.keys.backward = isPressed; break;
+            case 'KeyA': case 'ArrowLeft': this.keys.left = isPressed; break;
+            case 'KeyD': case 'ArrowRight': this.keys.right = isPressed; break;
+            case 'Space': this.keys.fire = isPressed; break;
         }
     }
 }
