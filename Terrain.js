@@ -1,67 +1,41 @@
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
+class Environment Terrain {
+    constructor(scene, physicsWorld) {
+        this.scene = scene;
+        this.physicsWorld = physicsWorld;
 
-export function createEnvironment(scene, world) {
-    const size = 300;
-    const segments = 100;
-
-    // 1. Terrain Mesh
-    const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
-    geometry.rotateX(-Math.PI / 2);
-    const pos = geometry.attributes.position;
-    const matrix = [];
-
-    for (let i = 0; i <= segments; i++) {
-        matrix.push([]);
-        for (let j = 0; j <= segments; j++) {
-            const index = i * (segments + 1) + j;
-            const x = pos.getX(index);
-            const z = pos.getZ(index);
-            
-            // Perlin/Sine Waves for Hills
-            const h = Math.sin(x * 0.03) * Math.cos(z * 0.03) * 5 + Math.sin(x * 0.08) * 2;
-            pos.setY(index, h);
-            matrix[i].push(h);
-        }
+        this.createGround();
+        this.createScenery();
     }
-    geometry.computeVertexNormals();
 
-    const material = new THREE.MeshStandardMaterial({ color: 0x3b5323, roughness: 0.8 });
-    const terrainMesh = new THREE.Mesh(geometry, material);
-    terrainMesh.receiveShadow = true;
-    scene.add(terrainMesh);
+    createGround() {
+        const size = 300;
+        const geometry = new THREE.PlaneGeometry(size, size, 32, 32);
+        geometry.rotateX(-Math.PI / 2);
 
-    // Physics Heightfield Ground
-    const shape = new CANNON.Heightfield(matrix, { elementSize: size / segments });
-    const body = new CANNON.Body({ mass: 0 });
-    body.addShape(shape);
-    body.position.set(-size / 2, 0, size / 2);
-    body.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    world.addBody(body);
+        const material = new THREE.MeshStandardMaterial({ color: 0x556b2f, roughness: 0.9 });
+        const groundMesh = new THREE.Mesh(geometry, material);
+        groundMesh.receiveShadow = true;
+        this.scene.add(groundMesh);
 
-    // 2. Add Trees & Rocks
-    spawnEnvironmentObjects(scene, world);
+        // Ground Physics Body
+        const groundShape = new CANNON.Plane();
+        const groundBody = new CANNON.Body({ mass: 0, material: this.physicsWorld.groundMaterial });
+        groundBody.addShape(groundShape);
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        this.physicsWorld.world.addBody(groundBody);
+    }
 
-    return { terrainMesh, body };
-}
+    createScenery() {
+        // Rocks & Obstacles
+        const rockGeo = new THREE.DodecahedronGeometry(1.5, 1);
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
 
-function spawnEnvironmentObjects(scene, world) {
-    const treeGeo = new THREE.ConeGeometry(1, 4, 8);
-    const treeMat = new THREE.MeshStandardMaterial({ color: 0x1b4d3e });
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.2, 1);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2e00 });
-
-    for (let i = 0; i < 40; i++) {
-        const x = (Math.random() - 0.5) * 200;
-        const z = (Math.random() - 0.5) * 200;
-
-        const treeGroup = new THREE.Group();
-        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-        const foliage = new THREE.Mesh(treeGeo, treeMat);
-        foliage.position.y = 2.5;
-
-        treeGroup.add(trunk, foliage);
-        treeGroup.position.set(x, 1, z);
-        scene.add(treeGroup);
+        for (let i = 0; i < 25; i++) {
+            const rock = new THREE.Mesh(rockGeo, rockMat);
+            const x = (Math.random() - 0.5) * 200;
+            const z = (Math.random() - 0.5) * 200;
+            rock.position.set(x, 0.75, z);
+            this.scene.add(rock);
+        }
     }
 }
